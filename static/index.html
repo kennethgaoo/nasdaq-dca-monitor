@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>纳斯达克100定投监控</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f0f2f5; color: #1a1a2e; min-height: 100vh;
+        }
+        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+        .header {
+            text-align: center; padding: 24px 0 20px;
+            border-bottom: 1px solid #e5e7eb; margin-bottom: 24px;
+        }
+        .header h1 { font-size: 24px; font-weight: 700; }
+        .header .subtitle { color: #6b7280; font-size: 14px; margin-top: 4px; }
+
+        .status-bar {
+            display: flex; justify-content: center; gap: 32px;
+            padding: 12px 20px; background: #fff; border-radius: 12px;
+            margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            flex-wrap: wrap;
+        }
+        .status-item { text-align: center; }
+        .status-item .label { font-size: 12px; color: #6b7280; }
+        .status-item .value { font-size: 18px; font-weight: 700; }
+        .status-item .value.up { color: #16a34a; }
+        .status-item .value.down { color: #dc2626; }
+
+        .advice-card {
+            background: linear-gradient(135deg, #1e3a5f, #2563eb);
+            color: #fff; border-radius: 16px; padding: 32px; text-align: center;
+            margin-bottom: 20px; box-shadow: 0 4px 20px rgba(37,99,235,0.3);
+        }
+        .advice-card .label { font-size: 14px; opacity: 0.9; }
+        .advice-card .amount {
+            font-size: 56px; font-weight: 800; margin: 8px 0;
+            letter-spacing: -2px;
+        }
+        .advice-card .amount .unit { font-size: 20px; margin-left: 4px; }
+        .advice-card .signal-tag {
+            display: inline-block; padding: 6px 20px; border-radius: 20px;
+            font-size: 16px; font-weight: 600; margin-top: 8px;
+        }
+
+        .level-4 { background: #2563eb; }
+        .level-3 { background: #16a34a; }
+        .level-2 { background: #ca8a04; color: #1a1a2e; }
+        .level-1 { background: #ea580c; }
+        .level-0 { background: #dc2626; }
+
+        .score-bar-container {
+            background: #fff; border-radius: 12px; padding: 20px;
+            margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .score-bar-container .title {
+            font-size: 14px; color: #6b7280; margin-bottom: 8px;
+        }
+        .score-bar {
+            height: 16px; background: #e5e7eb; border-radius: 8px;
+            overflow: hidden; position: relative;
+        }
+        .score-bar-fill {
+            height: 100%; border-radius: 8px;
+            background: linear-gradient(90deg, #dc2626, #ea580c, #ca8a04, #16a34a, #2563eb);
+            transition: width 0.6s ease;
+        }
+        .score-labels {
+            display: flex; justify-content: space-between; margin-top: 4px;
+            font-size: 11px; color: #9ca3af;
+        }
+
+        .dimension-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 12px; margin-bottom: 20px;
+        }
+        .dim-card {
+            background: #fff; border-radius: 12px; padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .dim-card .dim-name { font-size: 13px; color: #6b7280; font-weight: 600; }
+        .dim-card .dim-score { font-size: 28px; font-weight: 700; margin: 4px 0; }
+        .dim-card .dim-bar {
+            height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden;
+        }
+        .dim-card .dim-bar-fill {
+            height: 100%; border-radius: 3px; transition: width 0.5s;
+        }
+        .dim-card .dim-weight { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+
+        /* 近一周评分 */
+        .week-scores { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0; }
+        .week-score-item {
+            flex: 1; min-width: 70px; text-align: center; padding: 10px 6px;
+            border-radius: 8px; background: #f8fafc;
+        }
+        .week-score-item .ws-date { font-size: 11px; color: #6b7280; }
+        .week-score-item .ws-score { font-size: 20px; font-weight: 700; margin: 2px 0; }
+        .week-score-item .ws-signal { font-size: 11px; margin-top: 2px; }
+        .week-score-item .ws-amount { font-size: 11px; color: #6b7280; }
+
+        .chart-container {
+            background: #fff; border-radius: 12px; padding: 20px;
+            margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .chart-container .title { font-size: 14px; color: #6b7280; margin-bottom: 12px; font-weight: 600; }
+        .chart-wrapper { position: relative; height: 360px; }
+
+        .indicators-table-container {
+            background: #fff; border-radius: 12px; padding: 20px;
+            margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .indicators-table-container .title {
+            font-size: 14px; color: #6b7280; margin-bottom: 12px; font-weight: 600;
+        }
+        .indicator-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 8px;
+        }
+        .indicator-item {
+            display: flex; justify-content: space-between; padding: 6px 10px;
+            background: #f9fafb; border-radius: 6px; font-size: 13px;
+        }
+        .indicator-item .ind-label { color: #6b7280; }
+        .indicator-item .ind-value { font-weight: 600; }
+
+        .history-chart-container {
+            background: #fff; border-radius: 12px; padding: 20px;
+            margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .history-chart-container .title {
+            font-size: 14px; color: #6b7280; margin-bottom: 12px; font-weight: 600;
+        }
+
+        .footer {
+            text-align: center; color: #9ca3af; font-size: 12px;
+            padding: 20px 0;
+        }
+
+        .loading { text-align: center; padding: 60px 20px; color: #6b7280; }
+        .loading .spinner {
+            border: 3px solid #e5e7eb; border-top-color: #2563eb;
+            border-radius: 50%; width: 32px; height: 32px;
+            animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error-card {
+            background: #fef2f2; color: #dc2626; border-radius: 12px;
+            padding: 32px; text-align: center; margin-bottom: 20px;
+        }
+        .error-card .retry-btn {
+            margin-top: 12px; padding: 8px 24px; background: #dc2626;
+            color: #fff; border: none; border-radius: 8px; cursor: pointer;
+        }
+        .update-time {
+            text-align: center; font-size: 12px; color: #9ca3af; margin-top: -12px; margin-bottom: 20px;
+        }
+
+        @media (max-width: 640px) {
+            .advice-card .amount { font-size: 40px; }
+            .dimension-grid { grid-template-columns: repeat(2, 1fr); }
+            .container { padding: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="app">
+        <div class="header">
+            <h1>纳斯达克100定投监控</h1>
+            <div class="subtitle">南方016452 · 每日智能定投决策</div>
+        </div>
+
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            <div>正在获取最新纳斯达克数据...</div>
+        </div>
+
+        <div id="errorState" class="error-card" style="display:none;">
+            <div id="errorMessage">数据获取失败</div>
+            <button class="retry-btn" onclick="fetchData()">重新加载</button>
+        </div>
+
+        <div id="mainContent" style="display:none;">
+            <div class="status-bar" id="statusBar"></div>
+
+            <div class="advice-card" id="adviceCard"></div>
+
+            <div class="score-bar-container">
+                <div class="title">综合评分</div>
+                <div class="score-bar">
+                    <div class="score-bar-fill" id="scoreFill" style="width:0%"></div>
+                </div>
+                <div class="score-labels">
+                    <span>风险 0</span>
+                    <span>25</span>
+                    <span>45</span>
+                    <span>65</span>
+                    <span>强烈加仓 100</span>
+                </div>
+            </div>
+
+            <!-- 近一周评分回顾 -->
+            <div class="score-bar-container">
+                <div class="title">近一周评分回顾</div>
+                <div class="week-scores" id="weekScores"></div>
+            </div>
+
+            <div class="dimension-grid" id="dimensionGrid"></div>
+
+            <div class="chart-container">
+                <div class="title">纳斯达克100指数走势 — 布林带和均线</div>
+                <div class="chart-wrapper">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+
+            <div class="history-chart-container">
+                <div class="title">历史定投建议趋势</div>
+                <div class="chart-wrapper">
+                    <canvas id="historyChart"></canvas>
+                </div>
+            </div>
+
+            <div class="indicators-table-container" id="indicatorsTable">
+                <div class="title">全部技术指标</div>
+                <div class="indicator-grid" id="indicatorGrid"></div>
+            </div>
+
+            <div class="update-time" id="updateTime"></div>
+        </div>
+
+        <div class="footer">
+            数据来源: Yahoo Finance · 本工具仅供参考，不构成投资建议
+        </div>
+    </div>
+
+    <script>
+        const DIM_NAMES_CN = {
+            trend: "趋势跟踪",
+            momentum: "动量分析",
+            volatility: "波动率",
+            deviation: "估值偏离",
+            sentiment: "市场情绪"
+        };
+
+        let priceChartInstance = null;
+        let historyChartInstance = null;
+
+        function getSignalColor(signal) {
+            const map = { "强烈加仓": "#2563eb", "加仓": "#16a34a", "持有": "#ca8a04", "谨慎": "#ea580c", "风险": "#dc2626" };
+            return map[signal] || "#6b7280";
+        }
+
+        function formatNumber(n) {
+            if (n === null || n === undefined) return "--";
+            if (typeof n === 'number') return n.toLocaleString('zh-CN');
+            return n;
+        }
+
+        function renderStatusBar(data) {
+            const d = data.latest;
+            const changeClass = d.change_pct !== null && d.change_pct >= 0 ? "up" : "down";
+            const arrow = d.change_pct !== null ? (d.change_pct >= 0 ? "▲" : "▼") : "";
+            const changeVal = d.change_pct !== null ? d.change_pct.toFixed(2) : "--";
+            document.getElementById("statusBar").innerHTML =
+                '<div class="status-item"><div class="label">日期</div><div class="value">' + d.date + '</div></div>' +
+                '<div class="status-item"><div class="label">纳斯达克100 (NDX)</div><div class="value">' + formatNumber(d.price) + '</div></div>' +
+                '<div class="status-item"><div class="label">日涨跌幅</div><div class="value ' + changeClass + '">' + arrow + ' ' + changeVal + '%</div></div>';
+        }
+
+        function renderAdviceCard(data) {
+            const d = data.latest;
+            const color = getSignalColor(d.signal);
+            document.getElementById("adviceCard").innerHTML =
+                '<div class="label">建议定投金额</div>' +
+                '<div class="amount">¥' + d.recommended_amount + '<span class="unit">/天</span></div>' +
+                '<div class="signal-tag level-' + d.level + '" style="background:' + color + '">' + d.signal + ' · 综合评分 ' + d.overall_score + '</div>';
+            document.getElementById("scoreFill").style.width = d.overall_score + "%";
+        }
+
+        function renderWeekScores(data) {
+            const weeks = data.week_scores || [];
+            const signalLabels = { "强烈加仓": "强烈", "加仓": "加仓", "持有": "持有", "谨慎": "谨慎", "风险": "风险" };
+            const signalColors = { "强烈加仓": "#2563eb", "加仓": "#16a34a", "持有": "#ca8a04", "谨慎": "#ea580c", "风险": "#dc2626" };
+            let html = "";
+            for (const w of weeks) {
+                const color = signalColors[w.signal] || "#9ca3af";
+                html +=
+                    '<div class="week-score-item">' +
+                    '<div class="ws-date">' + w.date.slice(5) + '</div>' +
+                    '<div class="ws-score" style="color:' + color + '">' + w.score.toFixed(0) + '</div>' +
+                    '<div class="ws-signal" style="color:' + color + '">' + (signalLabels[w.signal] || w.signal) + '</div>' +
+                    '<div class="ws-amount">¥' + w.amount + '</div>' +
+                    '</div>';
+            }
+            document.getElementById("weekScores").innerHTML = html;
+        }
+
+        function renderDimensionCards(data) {
+            const dimScores = data.latest.dimension_scores;
+            const weights = data.latest.dimension_weights;
+            let html = "";
+            for (const [key, score] of Object.entries(dimScores)) {
+                const name = DIM_NAMES_CN[key] || key;
+                const weight = Math.round((weights[key] || 0) * 100);
+                const color = score >= 65 ? "#16a34a" : score >= 45 ? "#ca8a04" : "#dc2626";
+                html +=
+                    '<div class="dim-card">' +
+                    '<div class="dim-name">' + name + '</div>' +
+                    '<div class="dim-score" style="color:' + color + '">' + score.toFixed(0) + '</div>' +
+                    '<div class="dim-bar"><div class="dim-bar-fill" style="width:' + score + '%;background:' + color + '"></div></div>' +
+                    '<div class="dim-weight">权重 ' + weight + '%</div>' +
+                    '</div>';
+            }
+            document.getElementById("dimensionGrid").innerHTML = html;
+        }
+
+        function renderIndicators(data) {
+            const ind = data.latest.indicators;
+            const labels = {
+                Close: "收盘价", MA20: "MA20", MA50: "MA50", MA200: "MA200",
+                MACD: "MACD", MACD_Hist: "MACD柱",
+                RSI: "RSI(14)", "Stoch_%K": "Stoch %K", "Stoch_%D": "Stoch %D",
+                BB_Upper: "布林上轨", BB_Middle: "布林中轨", BB_Lower: "布林下轨",
+                "BB_%B": "BB %B", BB_Width: "布林带宽%",
+                ADX: "ADX", ATR: "ATR", ATR_Pct: "ATR%",
+                ROC: "ROC(%)", Pct_From_52W_High: "距52周高%", Pct_From_52W_Low: "距52周低%",
+                Pct_From_MA200: "距MA200%", Z_Score_20: "Z-Score(20)",
+                VIX: "VIX", Volume_Ratio: "量比"
+            };
+            let html = "";
+            for (const [key, label] of Object.entries(labels)) {
+                const val = ind[key];
+                const display = val !== null && val !== undefined
+                    ? Number(val).toLocaleString('zh-CN', {maximumFractionDigits: 2})
+                    : "--";
+                html += '<div class="indicator-item"><span class="ind-label">' + label + '</span><span class="ind-value">' + display + '</span></div>';
+            }
+            document.getElementById("indicatorGrid").innerHTML = html;
+        }
+
+        function renderPriceChart(data) {
+            const CHART_DAYS = 60;
+            const chartData = data.history.slice(-CHART_DAYS);
+            const dates = chartData.map(d => d.date);
+            const prices = chartData.map(d => d.price);
+            const ma20 = chartData.map(d => d.MA20);
+            const ma50 = chartData.map(d => d.MA50);
+            const ma200 = chartData.map(d => d.MA200);
+            const bbUpper = chartData.map(d => d.BB_Upper);
+            const bbLower = chartData.map(d => d.BB_Lower);
+
+            if (priceChartInstance) {
+                priceChartInstance.destroy();
+            }
+
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            priceChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: 'NDX 收盘价',
+                            data: prices,
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37,99,235,0.05)',
+                            fill: false,
+                            tension: 0.3,
+                            pointRadius: 1,
+                            borderWidth: 2,
+                            order: 1,
+                        },
+                        {
+                            label: 'BB 上轨',
+                            data: bbUpper,
+                            borderColor: 'rgba(234,88,12,0.35)',
+                            borderWidth: 1,
+                            borderDash: [4, 4],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.3,
+                            order: 2,
+                        },
+                        {
+                            label: 'BB 下轨',
+                            data: bbLower,
+                            borderColor: 'rgba(234,88,12,0.35)',
+                            borderWidth: 1,
+                            borderDash: [4, 4],
+                            pointRadius: 0,
+                            fill: '-2',
+                            backgroundColor: 'rgba(234,88,12,0.06)',
+                            tension: 0.3,
+                            order: 2,
+                        },
+                        {
+                            label: 'MA20',
+                            data: ma20,
+                            borderColor: 'rgba(22,163,74,0.6)',
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.3,
+                            order: 2,
+                        },
+                        {
+                            label: 'MA50',
+                            data: ma50,
+                            borderColor: 'rgba(202,138,4,0.6)',
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.3,
+                            order: 2,
+                        },
+                        {
+                            label: 'MA200',
+                            data: ma200,
+                            borderColor: 'rgba(220,38,38,0.6)',
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.3,
+                            order: 2,
+                        },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 14, padding: 12, font: { size: 11 } }
+                        },
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { maxTicksLimit: 10, font: { size: 11 } }
+                        },
+                        y: {
+                            grid: { color: '#f0f0f0' },
+                            ticks: { font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderHistoryChart(data) {
+            const CHART_DAYS = 60;
+            const slice = data.history.slice(-CHART_DAYS);
+            const dates = slice.map(d => d.date);
+            const amounts = slice.map(d => d.amount);
+
+            if (historyChartInstance) {
+                historyChartInstance.destroy();
+            }
+
+            const ctx = document.getElementById('historyChart').getContext('2d');
+            historyChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: '建议定投金额 (¥)',
+                        data: amounts,
+                        backgroundColor: amounts.map(a => {
+                            if (a >= 180) return '#2563eb';
+                            if (a >= 140) return '#16a34a';
+                            if (a > 100) return '#ca8a04';
+                            return '#9ca3af';
+                        }),
+                        borderRadius: 3,
+                        yAxisID: 'y1',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: {
+                        legend: { display: false },
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { maxTicksLimit: 10, font: { size: 10 } }
+                        },
+                        y1: {
+                            position: 'left',
+                            min: 80,
+                            max: 220,
+                            grid: { color: '#f0f0f0' },
+                            ticks: { font: { size: 11 } },
+                            title: { display: true, text: '建议金额 (¥)', font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function fetchData() {
+            document.getElementById("loadingState").style.display = "";
+            document.getElementById("errorState").style.display = "none";
+            document.getElementById("mainContent").style.display = "none";
+
+            try {
+                // 检查是否有嵌入数据（静态模式）
+                const dataEl = document.getElementById("__DATA__");
+                if (dataEl) {
+                    const data = JSON.parse(dataEl.textContent);
+                    if (!data.success) {
+                        throw new Error(data.error || "数据错误");
+                    }
+                    document.getElementById("loadingState").style.display = "none";
+                    document.getElementById("mainContent").style.display = "block";
+                    renderStatusBar(data);
+                    renderAdviceCard(data);
+                    renderWeekScores(data);
+                    renderDimensionCards(data);
+                    renderIndicators(data);
+                    renderPriceChart(data);
+                    renderHistoryChart(data);
+                    document.getElementById("updateTime").textContent = "数据更新于 " + data.updated_at;
+                    return;
+                }
+
+                // 没有嵌入数据 → 从 API 获取（Flask 模式）
+                const resp = await fetch('/api/data');
+                const data = await resp.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || "未知错误");
+                }
+
+                document.getElementById("loadingState").style.display = "none";
+                document.getElementById("mainContent").style.display = "block";
+
+                renderStatusBar(data);
+                renderAdviceCard(data);
+                renderWeekScores(data);
+                renderDimensionCards(data);
+                renderIndicators(data);
+                renderPriceChart(data);
+                renderHistoryChart(data);
+
+                document.getElementById("updateTime").textContent = "数据更新于 " + data.updated_at;
+
+            } catch (err) {
+                document.getElementById("loadingState").style.display = "none";
+                document.getElementById("errorState").style.display = "block";
+                document.getElementById("errorMessage").textContent = "数据获取失败: " + err.message;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchData);
+    </script>
+</body>
+</html>

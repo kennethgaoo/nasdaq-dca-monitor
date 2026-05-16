@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(pip list *)",
+      "Bash(python app.py)",
+      "Bash(curl -s http://localhost:5000/api/data)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Success:', d.get\\('success'\\)\\); print\\('Signal:', d.get\\('latest',{}\\).get\\('signal'\\)\\); print\\('Amount:', d.get\\('latest',{}\\).get\\('recommended_amount'\\)\\); print\\('Score:', d.get\\('latest',{}\\).get\\('overall_score'\\)\\); print\\('Price:', d.get\\('latest',{}\\).get\\('price'\\)\\); print\\('Dim scores:', json.dumps\\(d.get\\('latest',{}\\).get\\('dimension_scores',{}\\), ensure_ascii=False\\)\\); print\\('History len:', len\\(d.get\\('history',[]\\)\\)\\)\")",
+      "Bash(pkill -f \"python app.py\")",
+      "Bash(python -c ' *)",
+      "Bash(curl -s http://localhost:5000/)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); l=d['latest']; print\\(f\\\\\"Price: {l['price']}\\\\nChange%: {l['change_pct']}\\\\nSignal: {l['signal']}\\\\nScore: {l['overall_score']}\\\\nAmount: ¥{l['recommended_amount']}/天\\\\nVIX: {l['indicators'].get\\('VIX'\\)}\\\\nHistory: {len\\(d['history']\\)} days\\\\\"\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); l=d['latest']; print\\('change_pct:', l['change_pct']\\); print\\('price:', l['price']\\); print\\('signal score amount:', l['signal'], l['overall_score'], l['recommended_amount']\\)\")"
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+cache/
+public/
+flask_output.log
+__pycache__/
+*.pyc
+.DS_Store
