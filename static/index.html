@@ -474,8 +474,8 @@
                         label: '建议定投金额 (¥)',
                         data: amounts,
                         backgroundColor: amounts.map(a => {
-                            if (a >= 180) return '#2563eb';
-                            if (a >= 140) return '#16a34a';
+                            if (a >= 350) return '#2563eb';
+                            if (a >= 200) return '#16a34a';
                             if (a > 100) return '#ca8a04';
                             return '#9ca3af';
                         }),
@@ -498,7 +498,7 @@
                         y1: {
                             position: 'left',
                             min: 80,
-                            max: 220,
+                            max: 520,
                             grid: { color: '#f0f0f0' },
                             ticks: { font: { size: 11 } },
                             title: { display: true, text: '建议金额 (¥)', font: { size: 11 } }

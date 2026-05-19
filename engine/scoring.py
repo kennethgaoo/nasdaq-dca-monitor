@@ -310,18 +310,18 @@ def get_investment_advice(overall_score):
         dict: 包含建议金额、信号标签、信号级别
     """
     if overall_score >= 80:
-        amount = 200
+        amount = 500
         signal = "强烈加仓"
         level = 4
     elif overall_score >= 65:
-        # 65~79: 线性插值 160~190
-        amount = int(160 + (overall_score - 65) / (79 - 65) * 30)
+        # 65~79: 线性插值 300~480
+        amount = int(300 + (overall_score - 65) / (79 - 65) * 180)
         amount = round(amount / 10) * 10
         signal = "加仓"
         level = 3
     elif overall_score >= 45:
-        # 45~64: 线性插值 100~150
-        amount = int(100 + (overall_score - 45) / (64 - 45) * 50)
+        # 45~64: 线性插值 100~280
+        amount = int(100 + (overall_score - 45) / (64 - 45) * 180)
         amount = round(amount / 10) * 10
         signal = "持有"
         level = 2
@@ -335,7 +335,7 @@ def get_investment_advice(overall_score):
         level = 0
 
     return {
-        "amount": max(100, min(200, amount)),
+        "amount": max(100, min(500, amount)),
         "signal": signal,
         "level": level,
         "score": round(overall_score, 1),
