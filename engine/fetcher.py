@@ -84,10 +84,37 @@ def fetch_ndx_data():
 
 
 def fetch_vix_data():
-    """获取 CBOE VIX 波动率指数（从腾讯API获取，数据质量有限）"""
-    # VIX 在腾讯系统中数据更新不及时，返回空 DataFrame
-    # 评分引擎会优雅降级
-    return pd.DataFrame()
+    """从 CBOE 官网获取 VIX 波动率指数日线数据（国内可直连）"""
+    cache_name = "vix"
+
+    if _is_cached_today(cache_name):
+        return _load_from_cache(cache_name)
+
+    url = "https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv"
+    resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
+    resp.raise_for_status()
+
+    lines = resp.text.strip().split("\n")
+    # 格式: Date,Open,High,Low,Close  (MM/DD/YYYY)
+    records = []
+    for line in lines[1:]:  # 跳过表头
+        parts = line.strip().split(",")
+        if len(parts) < 5:
+            continue
+        records.append({
+            "Date": parts[0],
+            "Open": float(parts[1]),
+            "High": float(parts[2]),
+            "Low": float(parts[3]),
+            "Close": float(parts[4]),
+        })
+
+    df = pd.DataFrame(records)
+    df["Date"] = pd.to_datetime(df["Date"], format="%m/%d/%Y")
+    df = df.set_index("Date").sort_index()
+
+    _save_to_cache(cache_name, df)
+    return df
 
 
 def fetch_all_data():
